@@ -6,13 +6,15 @@ interface JobFormProps {
   onAddJob: (jobData: Omit<Job, 'id' | 'status' | 'createdAt'>) => void;
   currentUser: User;
   salesUsers: User[];
+  supportUsers: User[];
 }
 
-const JobForm: React.FC<JobFormProps> = ({ onAddJob, currentUser, salesUsers }) => {
+const JobForm: React.FC<JobFormProps> = ({ onAddJob, currentUser, salesUsers, supportUsers }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [salespersonId, setSalespersonId] = useState(currentUser.role === Role.Sales ? currentUser.id : '');
+  const [supportHandlerId, setSupportHandlerId] = useState('');
 
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -35,12 +37,13 @@ const JobForm: React.FC<JobFormProps> = ({ onAddJob, currentUser, salesUsers }) 
         return;
     }
 
-    onAddJob({ title, description, dueDate: new Date(dueDate), salespersonId });
+    onAddJob({ title, description, dueDate: new Date(dueDate), salespersonId, supportHandlerId: supportHandlerId || undefined });
     setTitle('');
     setDescription('');
     setDueDate('');
     if (currentUser.role === Role.Support) {
         setSalespersonId('');
+        setSupportHandlerId('');
     }
   };
 
@@ -52,24 +55,44 @@ const JobForm: React.FC<JobFormProps> = ({ onAddJob, currentUser, salesUsers }) 
       </h2>
       <form onSubmit={handleSubmit} className="space-y-4">
         {currentUser.role === Role.Support && (
-            <div>
-                <label htmlFor="salesperson" className="block text-sm font-medium text-gray-700">
-                    มอบหมายให้
-                </label>
-                <select
-                    id="salesperson"
-                    value={salespersonId}
-                    onChange={(e) => setSalespersonId(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                    required
-                >
-                    <option value="" disabled>-- เลือกเซล --</option>
-                    {salesUsers.map(user => (
-                        <option key={user.id} value={user.id}>
-                            {user.firstName} {user.lastName}
-                        </option>
-                    ))}
-                </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label htmlFor="salesperson" className="block text-sm font-medium text-gray-700">
+                        มอบหมายให้ (เซลล์)
+                    </label>
+                    <select
+                        id="salesperson"
+                        value={salespersonId}
+                        onChange={(e) => setSalespersonId(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                        required
+                    >
+                        <option value="" disabled>-- เลือกเซล --</option>
+                        {salesUsers.map(user => (
+                            <option key={user.id} value={user.id}>
+                                {user.firstName} {user.lastName}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                 <div>
+                    <label htmlFor="supportHandler" className="block text-sm font-medium text-gray-700">
+                        ผู้รับผิดชอบ (Support)
+                    </label>
+                    <select
+                        id="supportHandler"
+                        value={supportHandlerId}
+                        onChange={(e) => setSupportHandlerId(e.target.value)}
+                        className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                    >
+                        <option value="">-- ยังไม่มอบหมาย --</option>
+                        {supportUsers.map(user => (
+                            <option key={user.id} value={user.id}>
+                                {user.firstName} {user.lastName}
+                            </option>
+                        ))}
+                    </select>
+                </div>
             </div>
         )}
         <div>
