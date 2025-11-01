@@ -28,6 +28,7 @@ export interface Job {
   dueDate: Date;
   createdAt: Date;
   salespersonId: string;
+  supportHandlerId?: string; // ID of the support user handling the job
   completedAt?: Date;
   workDurationDays?: number;
   overdueDays?: number;
