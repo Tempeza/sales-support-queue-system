@@ -1,17 +1,18 @@
 import React from 'react';
 import { Job, JobStatus, User, Role } from '../types';
-import { ClockIcon, PlayIcon, CheckCircleIcon, UserIcon, CalendarDaysIcon, TrashIcon } from './icons';
+import { ClockIcon, PlayIcon, CheckCircleIcon, UserIcon, CalendarDaysIcon, TrashIcon, WrenchScrewdriverIcon } from './icons';
 
 interface JobCardProps {
   job: Job;
   salesperson?: User;
+  supportHandler?: User;
   onUpdateJobStatus: (jobId: string, status: JobStatus) => void;
   onInitiateComplete: (job: Job) => void;
   onInitiateDelete: (job: Job) => void;
   currentUser: User;
 }
 
-const JobCard: React.FC<JobCardProps> = ({ job, salesperson, onUpdateJobStatus, onInitiateComplete, onInitiateDelete, currentUser }) => {
+const JobCard: React.FC<JobCardProps> = ({ job, salesperson, supportHandler, onUpdateJobStatus, onInitiateComplete, onInitiateDelete, currentUser }) => {
     const statusTextMap: Record<JobStatus, string> = {
         [JobStatus.Queued]: 'อยู่ในคิว',
         [JobStatus.InProgress]: 'กำลังดำเนินการ',
@@ -77,6 +78,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, salesperson, onUpdateJobStatus, 
     };
     
     const salespersonName = salesperson ? `${salesperson.firstName} ${salesperson.lastName}` : 'ไม่ระบุ';
+    const supportHandlerName = supportHandler ? `${supportHandler.firstName} ${supportHandler.lastName}` : 'ไม่ระบุ';
     const { label: dueDateLabel, colorClass: dueDateColor } = getDueDateInfo(job.dueDate, job.status, job.completedAt);
 
   return (
@@ -115,8 +117,19 @@ const JobCard: React.FC<JobCardProps> = ({ job, salesperson, onUpdateJobStatus, 
                 <span className={`${config.textColor} font-medium capitalize`}>{statusTextMap[job.status]}</span>
             </div>
             <div className="flex items-center space-x-4">
+                 {supportHandler && (
+                    <div className="flex items-center space-x-2" title={`รับผิดชอบโดย ${supportHandlerName}`}>
+                       <WrenchScrewdriverIcon className="w-5 h-5 text-gray-500" />
+                       {supportHandler.avatarUrl ?
+                           <img className="w-6 h-6 rounded-full" src={supportHandler.avatarUrl} alt={supportHandlerName}/>
+                           : <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-bold text-gray-600">{supportHandler.firstName.charAt(0)}</div>
+                       }
+                       <span className="text-gray-600 hidden sm:block">{supportHandlerName}</span>
+                   </div>
+                 )}
                  {salesperson ? (
-                    <div className="flex items-center space-x-2" title={`มอบหมายให้ ${salespersonName}`}>
+                    <div className="flex items-center space-x-2" title={`งานของ ${salespersonName}`}>
+                        <UserIcon className="w-5 h-5 text-gray-500"/>
                         {salesperson.avatarUrl ?
                             <img className="w-6 h-6 rounded-full" src={salesperson.avatarUrl} alt={salespersonName}/>
                             : <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-bold text-gray-600">{salesperson.firstName.charAt(0)}</div>
