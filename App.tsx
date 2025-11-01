@@ -8,7 +8,7 @@ import SalespersonDashboard from './components/SalespersonDashboard';
 
 // --- IMPORTANT ---
 // Replace this with your actual Google Apps Script Web App URL
-const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby0qt-sUfEl_lQD0itauwCBQQPIgS0sOtuTTacZVW-CFWpVawOkL0EvfjFt2TvgmPHs5g/exec';
+const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxr5HpFpS6UFMtUCVPXKiYjw5_fg-cWY2i2GWbamZ87T7MTZiJ5IMhRBAUObJARa6AXBg/exec';
 
 const THEMES = {
   indigo: {
