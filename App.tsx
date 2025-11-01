@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import { Job, JobStatus, User, Role } from './types';
 import AuthScreen from './components/AuthScreen';
@@ -8,7 +9,7 @@ import SalespersonDashboard from './components/SalespersonDashboard';
 
 // --- IMPORTANT ---
 // Replace this with your actual Google Apps Script Web App URL
-const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzMw-SalYBjMVP3JKSdDoLzlfANMxIuvZXW6sAH13bfdliD-QhrtGd5zBCPd7KpCOavHw/exec';
+const GOOGLE_APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby0qt-sUfEl_lQD0itauwCBQQPIgS0sOtuTTacZVW-CFWpVawOkL0EvfjFt2TvgmPHs5g/exec';
 
 const THEMES = {
   indigo: {
@@ -197,9 +198,9 @@ const App: React.FC = () => {
       const newJob = parseJobDates(result.job);
       setJobs(prevJobs => [newJob, ...prevJobs].sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime()));
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to add job:", error);
-        alert("เกิดข้อผิดพลาดในการเพิ่มงานใหม่");
+        alert(`เกิดข้อผิดพลาดในการเพิ่มงานใหม่: ${error.message}`);
     }
   }, []);
   
@@ -229,9 +230,9 @@ const App: React.FC = () => {
         
         setJobs(prev => prev.map(j => j.id === jobId ? parseJobDates(result.job) : j).sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime()));
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to update job status:", error);
-        alert("เกิดข้อผิดพลาดในการอัปเดตสถานะงาน");
+        alert(`เกิดข้อผิดพลาดในการอัปเดตสถานะงาน: ${error.message}`);
         setJobs(originalJobs); // Rollback on error
     }
   }, [jobs]);
@@ -242,7 +243,7 @@ const App: React.FC = () => {
 
     try {
         const payload = {
-            action: 'deleteJob',
+            action: 'deleteJob', // Reverted to 'deleteJob' as the most likely action name.
             jobId: jobId,
         };
         const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
@@ -256,9 +257,9 @@ const App: React.FC = () => {
         if (result.status !== 'success') {
             throw new Error(result.message || 'ไม่สามารถลบงานบนเซิร์ฟเวอร์ได้');
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error("Failed to delete job:", error);
-        alert("เกิดข้อผิดพลาดในการลบงาน");
+        alert(`เกิดข้อผิดพลาดในการลบงาน: ${error.message}`);
         setJobs(originalJobs); // Rollback on error
     }
   }, [jobs]);
