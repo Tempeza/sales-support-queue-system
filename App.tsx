@@ -57,7 +57,10 @@ const parseJobDates = (job: any): Job => ({
 
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('loggedInUser');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [registeredUsers, setRegisteredUsers] = useState<User[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,40 +71,55 @@ const App: React.FC = () => {
     applyTheme(theme);
   }, []);
 
+  const fetchInitialData = useCallback(async () => {
+    if (GOOGLE_APPS_SCRIPT_URL.includes('YOUR_DEPLOYMENT_ID') || !GOOGLE_APPS_SCRIPT_URL) {
+      setError('กรุณาตั้งค่า URL ของ Google Apps Script ในไฟล์ App.tsx');
+      setLoading(false);
+      return;
+    }
+    try {
+      setError(null);
+      const response = await fetch(`${GOOGLE_APPS_SCRIPT_URL}?action=getInitialData`);
+      if (!response.ok) {
+          throw new Error(`เกิดข้อผิดพลาดในการเชื่อมต่อ: ${response.statusText}`);
+      }
+      const data = await response.json();
+      const allUsers = data.users || [];
+      setRegisteredUsers(allUsers);
+      setJobs((data.jobs || []).map(parseJobDates));
+    } catch (err: any) {
+      console.error(err);
+      setError(`ไม่สามารถโหลดข้อมูลได้: ${err.message}. โปรดตรวจสอบ URL ของ Google Apps Script และการตั้งค่า CORS`);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Load users and jobs from Google Apps Script
   useEffect(() => {
-    const fetchData = async () => {
-      if (GOOGLE_APPS_SCRIPT_URL.includes('YOUR_DEPLOYMENT_ID') || !GOOGLE_APPS_SCRIPT_URL) {
-        setError('กรุณาตั้งค่า URL ของ Google Apps Script ในไฟล์ App.tsx');
-        setLoading(false);
-        return;
-      }
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // Correctly call the doGet endpoint with the 'getInitialData' action
-        const response = await fetch(`${GOOGLE_APPS_SCRIPT_URL}?action=getInitialData`);
-        if (!response.ok) {
-            throw new Error(`เกิดข้อผิดพลาดในการเชื่อมต่อ: ${response.statusText}`);
+    setLoading(true);
+    fetchInitialData();
+  }, [fetchInitialData]);
+
+  // Real-time polling for updates
+  useEffect(() => {
+    if (!user) return; // Don't poll if not logged in
+
+    const intervalId = setInterval(async () => {
+        try {
+            const response = await fetch(`${GOOGLE_APPS_SCRIPT_URL}?action=getInitialData`);
+            if (response.ok) {
+                const data = await response.json();
+                setJobs((data.jobs || []).map(parseJobDates));
+                setRegisteredUsers(data.users || []);
+            }
+        } catch (err) {
+            console.error("Polling for data failed:", err);
         }
-        const data = await response.json();
-        
-        // Assuming the script returns { users: [...], jobs: [...] }
-        const allUsers = data.users || [];
-        setRegisteredUsers(allUsers);
-        setJobs((data.jobs || []).map(parseJobDates));
+    }, 5000); // Poll every 5 seconds
 
-      } catch (err: any) {
-        console.error(err);
-        setError(`ไม่สามารถโหลดข้อมูลได้: ${err.message}. โปรดตรวจสอบ URL ของ Google Apps Script และการตั้งค่า CORS`);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
+    return () => clearInterval(intervalId); // Cleanup on unmount or user change
+  }, [user]);
   
   const handleRegister = async (newUser: Omit<User, 'id'>) => {
     const payload = {
@@ -125,27 +143,29 @@ const App: React.FC = () => {
 
     const registeredUser: User = result.user;
     
-    // Add password back for login simulation, as server doesn't return it
     const fullUserForLogin = { ...registeredUser, password: newUser.password };
 
     setRegisteredUsers(prev => [...prev, fullUserForLogin]);
     
-    const { password, ...userToLogin } = fullUserForLogin;
-    setUser(userToLogin);
+    const { password, ...userToStore } = fullUserForLogin;
+    localStorage.setItem('loggedInUser', JSON.stringify(userToStore));
+    setUser(userToStore);
   };
 
   const handleLogin = async (email: string, password_raw: string): Promise<boolean> => {
     const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 
-        'Content-Type': 'text/plain;charset=utf-8', // Use text/plain to avoid CORS preflight
+        'Content-Type': 'text/plain;charset=utf-8',
       },
       body: JSON.stringify({ action: 'login', email, password: password_raw })
     });
 
     const result = await response.json();
     if(result.status === 'success') {
-       setUser(result.user);
+       const { password, ...userToStore } = result.user;
+       localStorage.setItem('loggedInUser', JSON.stringify(userToStore));
+       setUser(userToStore);
        return true;
     } else {
        throw new Error(result.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
@@ -153,6 +173,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('loggedInUser');
     setUser(null);
   };
 
@@ -166,7 +187,7 @@ const App: React.FC = () => {
       const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'text/plain;charset=utf-8', // Use text/plain to avoid CORS preflight
+          'Content-Type': 'text/plain;charset=utf-8',
         },
         body: JSON.stringify(payload),
       });
@@ -199,7 +220,7 @@ const App: React.FC = () => {
         const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
             method: 'POST',
             headers: { 
-              'Content-Type': 'text/plain;charset=utf-8', // Use text/plain to avoid CORS preflight
+              'Content-Type': 'text/plain;charset=utf-8',
             },
             body: JSON.stringify(payload),
         });
@@ -215,12 +236,39 @@ const App: React.FC = () => {
     }
   }, [jobs]);
 
+  const handleDeleteJob = useCallback(async (jobId: string) => {
+    const originalJobs = jobs;
+    setJobs(prevJobs => prevJobs.filter(job => job.id !== jobId)); // Optimistic update
+
+    try {
+        const payload = {
+            action: 'deleteJob',
+            jobId: jobId,
+        };
+        const response = await fetch(GOOGLE_APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain;charset=utf-8',
+            },
+            body: JSON.stringify(payload),
+        });
+        const result = await response.json();
+        if (result.status !== 'success') {
+            throw new Error(result.message || 'ไม่สามารถลบงานบนเซิร์ฟเวอร์ได้');
+        }
+    } catch (error) {
+        console.error("Failed to delete job:", error);
+        alert("เกิดข้อผิดพลาดในการลบงาน");
+        setJobs(originalJobs); // Rollback on error
+    }
+  }, [jobs]);
+
   const handleChangeTheme = useCallback((newTheme: ThemeName) => {
     applyTheme(newTheme);
     setTheme(newTheme);
   }, []);
 
-  if (loading) {
+  if (loading && !user) {
       return (
           <div className="min-h-screen flex items-center justify-center bg-gray-100">
               <div className="flex flex-col items-center space-y-4">
@@ -262,7 +310,7 @@ const App: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
-              <JobQueue jobs={jobs} salesUsers={salesUsers} onUpdateJobStatus={handleUpdateJobStatus} currentUser={user} />
+              <JobQueue jobs={jobs} salesUsers={salesUsers} onUpdateJobStatus={handleUpdateJobStatus} onDeleteJob={handleDeleteJob} currentUser={user} />
             </div>
             <div className="space-y-8">
               {(user.role === Role.Sales || user.role === Role.Support) && (
