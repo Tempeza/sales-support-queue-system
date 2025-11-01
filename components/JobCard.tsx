@@ -1,108 +1,171 @@
 import React from 'react';
+import { Job, JobStatus, User, Role } from '../types';
+import { ClockIcon, PlayIcon, CheckCircleIcon, UserIcon, CalendarDaysIcon, TrashIcon, WrenchScrewdriverIcon, BuildingOffice2Icon } from './icons';
 
-// Props for all icons
-interface IconProps {
-  className?: string;
+interface JobCardProps {
+  job: Job;
+  salesperson?: User;
+  supportHandler?: User;
+  onUpdateJobStatus: (jobId: string, status: JobStatus) => void;
+  onInitiateComplete: (job: Job) => void;
+  onInitiateDelete: (job: Job) => void;
+  currentUser: User;
 }
 
-export const QueueListIcon: React.FC<IconProps> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 0 1 0 3.75H5.625a1.875 1.875 0 0 1 0-3.75Z" />
-  </svg>
-);
+const COMPANY_JOB_ID = 'COMPANY_JOB';
 
-export const PlusCircleIcon: React.FC<IconProps> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-    </svg>
-);
+const JobCard: React.FC<JobCardProps> = ({ job, salesperson, supportHandler, onUpdateJobStatus, onInitiateComplete, onInitiateDelete, currentUser }) => {
+    const statusTextMap: Record<JobStatus, string> = {
+        [JobStatus.Queued]: 'อยู่ในคิว',
+        [JobStatus.InProgress]: 'กำลังดำเนินการ',
+        [JobStatus.Completed]: 'เสร็จสิ้น',
+    };
 
-export const PlayIcon: React.FC<IconProps> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.347a1.125 1.125 0 0 1 0 1.972l-11.54 6.347a1.125 1.125 0 0 1-1.667-.986V5.653Z" />
-    </svg>
-);
+    const isOverdue = job.status !== JobStatus.Completed && new Date(job.dueDate) < new Date();
 
-export const CheckCircleIcon: React.FC<IconProps> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-    </svg>
-);
+    const statusConfig = {
+        [JobStatus.Queued]: {
+            icon: <ClockIcon className="w-5 h-5 text-gray-400" />,
+            bgColor: isOverdue ? 'bg-red-100 border-red-200' : 'bg-gray-100 border-gray-200',
+            textColor: 'text-gray-500',
+            actions: [
+                <button key="start" onClick={() => onUpdateJobStatus(job.id, JobStatus.InProgress)} className="text-sm font-medium text-primary-600 hover:text-primary-900">เริ่มงาน</button>
+            ]
+        },
+        [JobStatus.InProgress]: {
+            icon: <PlayIcon className="w-5 h-5 text-blue-500" />,
+            bgColor: isOverdue ? 'bg-red-100 border-red-200' : 'bg-blue-50 border-blue-200',
+            textColor: 'text-blue-700',
+            actions: [
+                <button key="complete" onClick={() => onInitiateComplete(job)} className="text-sm font-medium text-green-600 hover:text-green-900">เสร็จสิ้น</button>
+            ]
+        },
+        [JobStatus.Completed]: {
+            icon: <CheckCircleIcon className="w-5 h-5 text-green-500" />,
+            bgColor: 'bg-green-50 border-green-200',
+            textColor: 'text-green-700',
+            actions: []
+        }
+    };
 
-export const ClockIcon: React.FC<IconProps> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-    </svg>
-);
+    const config = statusConfig[job.status];
 
-export const BriefcaseIcon: React.FC<IconProps> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.075c0 1.313-.964 2.508-2.32 2.73-1.052.174-2.122.295-3.21.295-1.087 0-2.158-.121-3.21-.295-1.356-.222-2.32-1.417-2.32-2.73V14.15m11.05 0c.19.121.37.25.54.385v-4.63c0-1.313-.964-2.508-2.32-2.73-1.052-.174-2.122-.295-3.21-.295s-2.158.12-3.21.295c-1.356.222-2.32 1.417-2.32 2.73v4.63a9.01 9.01 0 0 0 .54-.385m11.05 0a9.01 9.01 0 0 1-11.05 0m11.05 0c.19.121.37.25.54.385m-12.13 0c-.17-.135-.35-.264-.54-.385m11.05 0 0 0" />
-    </svg>
-);
+    const getDueDateInfo = (date: Date, status: JobStatus, completedAt?: Date) => {
+        const today = new Date();
+        const dueDate = new Date(date);
 
-export const UserIcon: React.FC<IconProps> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
-    </svg>
-);
+        const localeOptions: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+        
+        const formattedDueDate = dueDate.toLocaleString('th-TH', localeOptions);
 
-export const WrenchScrewdriverIcon: React.FC<IconProps> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l.472.472a.563.563 0 0 1-.796.796l-.472-.472M11.42 15.17 8.496 18.1a.563.563 0 0 1-.796-.796L11.42 15.17m0 0L8.496 12.24a.563.563 0 0 1 .796-.796L11.42 15.17m0 0L14.344 18.1a.563.563 0 0 1-.796.796L11.42 15.17M3 21l6-6m-.5-6.5a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0Z" />
-  </svg>
-);
+        if (status === JobStatus.Completed) {
+            const formattedCompletedDate = completedAt 
+                ? new Date(completedAt).toLocaleString('th-TH', localeOptions)
+                : '';
+            return { label: `เสร็จสิ้น ${formattedCompletedDate}`, colorClass: 'text-gray-500' };
+        }
 
-export const ArrowPathIcon: React.FC<IconProps> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 11.664 0l3.181-3.183m-11.664 0-3.181 3.183m0 0h-4.992m4.993 0v-4.992" />
-  </svg>
-);
+        if (dueDate < today) {
+            return { label: `เลยกำหนด`, colorClass: 'text-red-600 font-bold' };
+        }
+        
+        const diffTime = dueDate.getTime() - today.getTime();
+        const diffHours = Math.ceil(diffTime / (1000 * 60 * 60));
 
-export const ArchiveBoxIcon: React.FC<IconProps> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="m20.25 7.5-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125Z" />
-  </svg>
-);
+        if (diffHours <= 48) {
+            return { label: `กำหนดส่ง ${formattedDueDate}`, colorClass: 'text-amber-600 font-semibold' };
+        }
 
-export const UserGroupIcon: React.FC<IconProps> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.75-5.455c.097-.345-.026-.72-.386-1.02a24.283 24.283 0 0 0-21.74 0c-.36.3-.483.675-.386 1.02.245 1.033.62 2.017 1.095 2.956a9.026 9.026 0 0 1 .845-2.395 2.25 2.25 0 0 1 4.244 0c.228.632.42 1.28.58 1.947.126.522.038 1.063-.26 1.515a21.035 21.035 0 0 1-9.252 0c-.298-.452-.386-.993-.26-1.515.16-.667.352-1.315.58-1.947a2.25 2.25 0 0 1 4.244 0 9.026 9.026 0 0 1 .845 2.395M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-  </svg>
-);
+        return { label: `กำหนดส่ง ${formattedDueDate}`, colorClass: 'text-gray-500' };
+    };
+    
+    const salespersonName = salesperson ? `${salesperson.firstName} ${salesperson.lastName}` : 'ไม่ระบุ';
+    const supportHandlerName = supportHandler ? `${supportHandler.firstName} ${supportHandler.lastName}` : 'ไม่ระบุ';
+    const { label: dueDateLabel, colorClass: dueDateColor } = getDueDateInfo(job.dueDate, job.status, job.completedAt);
 
-export const CalendarDaysIcon: React.FC<IconProps> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25M3 18.75a2.25 2.25 0 0 0 2.25 2.25h13.5A2.25 2.25 0 0 0 21 18.75m-18 0h18" />
-  </svg>
-);
+  return (
+    <div className={`p-4 rounded-lg shadow-sm border ${config.bgColor}`}>
+        <div className="flex justify-between items-start">
+            <div>
+                <h3 className="font-semibold text-gray-800">{job.title}</h3>
+                <p className="text-sm text-gray-600 mt-1">{job.description}</p>
+            </div>
+             <div className={`flex items-center space-x-2 text-sm whitespace-nowrap ${dueDateColor}`}>
+                <CalendarDaysIcon className="w-4 h-4" />
+                <span>{dueDateLabel}</span>
+            </div>
+        </div>
 
-export const FunnelIcon: React.FC<IconProps> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" />
-  </svg>
-);
+        {job.status === JobStatus.Completed && (job.workDurationDays !== undefined && job.overdueDays !== undefined) && (
+            <div className="mt-3 pt-3 border-t border-green-200 text-xs text-gray-600 space-y-1">
+                <div className="flex items-center">
+                    <p className="font-semibold w-24">สรุปผล:</p>
+                    <div className="flex gap-x-4">
+                        <span>ใช้เวลาทำ: <strong>{job.workDurationDays} วัน</strong></span>
+                        <span>สถานะ: 
+                            {job.overdueDays > 0
+                                ? <span className="font-bold text-red-600"> เลยกำหนด {job.overdueDays} วัน</span>
+                                : <span className="font-bold text-green-700"> ทันกำหนด</span>
+                            }
+                        </span>
+                    </div>
+                </div>
+            </div>
+        )}
 
-export const PaintBrushIcon: React.FC<IconProps> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="m9.53 16.122.002-.001a3 3 0 1 0-5.78 1.128 2.25 2.25 0 0 1-2.475 2.118L2.25 12.872a2.25 2.25 0 0 1 2.25-2.25h1.5m3.375 0-1.125-1.5M12 3.75l-1.5 1.5m0 0l-1.5 1.5M12 3.75l1.5 1.5m0 0l1.5 1.5M12 3.75l1.5-1.5m0 0l1.5-1.5m-1.5 1.5a3 3 0 1 1-6 0m6 0a3 3 0 1 1-6 0m6 0a3 3 0 1 1-6 0m6 0v6.375a3 3 0 0 1-6 0m6 0h1.5a2.25 2.25 0 0 1 2.25 2.25v1.5m-5.25 0v3.75m0-3.75a.75.75 0 0 1 .75-.75h2.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-.75.75h-2.25a.75.75 0 0 1-.75-.75v-3.75m9-6h-4.5v4.5h4.5v-4.5Z" />
-  </svg>
-);
+        <div className="mt-4 flex justify-between items-center text-sm">
+            <div className="flex items-center space-x-2">
+                {config.icon}
+                <span className={`${config.textColor} font-medium capitalize`}>{statusTextMap[job.status]}</span>
+            </div>
+            <div className="flex items-center space-x-4">
+                 {supportHandler && (
+                    <div className="flex items-center space-x-2" title={`รับผิดชอบโดย ${supportHandlerName}`}>
+                       <WrenchScrewdriverIcon className="w-5 h-5 text-gray-500" />
+                       {supportHandler.avatarUrl ?
+                           <img className="w-6 h-6 rounded-full" src={supportHandler.avatarUrl} alt={supportHandlerName}/>
+                           : <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-bold text-gray-600">{supportHandler.firstName.charAt(0)}</div>
+                       }
+                       <span className="text-gray-600 hidden sm:block">{supportHandlerName}</span>
+                   </div>
+                 )}
+                 {job.salespersonId === COMPANY_JOB_ID ? (
+                    <div className="flex items-center space-x-2" title="งานบริษัท">
+                      <BuildingOffice2Icon className="w-5 h-5 text-gray-500" />
+                      <span className="text-gray-600 hidden sm:block">งานบริษัท</span>
+                    </div>
+                 ) : salesperson ? (
+                    <div className="flex items-center space-x-2" title={`งานของ ${salespersonName}`}>
+                        <UserIcon className="w-5 h-5 text-gray-500"/>
+                        {salesperson.avatarUrl ?
+                            <img className="w-6 h-6 rounded-full" src={salesperson.avatarUrl} alt={salespersonName}/>
+                            : <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs font-bold text-gray-600">{salesperson.firstName.charAt(0)}</div>
+                        }
+                        <span className="text-gray-600 hidden sm:block">{salespersonName}</span>
+                    </div>
+                ) : (
+                    <div className="flex items-center space-x-2 text-gray-500">
+                        <UserIcon className="w-5 h-5"/>
+                        <span>ไม่ระบุ</span>
+                    </div>
+                )}
+                <div className="flex items-center space-x-2">
+                    {currentUser.role === Role.Support && config.actions}
+                    {currentUser.role === Role.Support && (
+                         <button
+                            onClick={() => onInitiateDelete(job)}
+                            className="text-gray-400 hover:text-red-600 p-1"
+                            title="ลบงาน"
+                            aria-label="ลบงาน"
+                         >
+                            <TrashIcon className="w-5 h-5" />
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    </div>
+  );
+};
 
-export const ExclamationTriangleIcon: React.FC<IconProps> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
-    </svg>
-);
-
-export const TrashIcon: React.FC<IconProps> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.067-2.09 1.02-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-    </svg>
-);
-
-export const MagnifyingGlassIcon: React.FC<IconProps> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-  </svg>
-);
+export default JobCard;
