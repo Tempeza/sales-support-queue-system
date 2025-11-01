@@ -1,74 +1,7 @@
-import React, { useState } from 'react';
-import { Job, JobStatus, User, Role } from '../types';
-import { QueueListIcon, ClockIcon, PlayIcon, CheckCircleIcon, UserIcon, CalendarDaysIcon, ArchiveBoxIcon, ExclamationTriangleIcon } from './icons';
+import React, { useState, useMemo } from 'react';
+import { Job, JobStatus, User } from '../types';
+import { QueueListIcon, ExclamationTriangleIcon, FunnelIcon, MagnifyingGlassIcon } from './icons';
 import JobCard from './JobCard';
-
-interface CompleteJobModalProps {
-    job: Job;
-    salesperson: User;
-    currentUser: User;
-    onClose: () => void;
-    onConfirm: (job: Job, files: FileList | null, notes: string) => void;
-}
-
-const CompleteJobModal: React.FC<CompleteJobModalProps> = ({ job, salesperson, currentUser, onClose, onConfirm }) => {
-    const [files, setFiles] = useState<FileList | null>(null);
-    const [notes, setNotes] = useState('');
-
-    const handleSubmit = () => {
-        onConfirm(job, files, notes);
-    };
-
-    const fileNames = files ? Array.from(files).map((f: File) => f.name).join(', ') : '';
-
-    return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-                <div className="p-6 border-b">
-                    <h3 className="text-lg font-semibold text-gray-800">ส่งมอบงาน: {job.title}</h3>
-                    <p className="text-sm text-gray-500">ถึง: {salesperson.firstName} {salesperson.lastName}</p>
-                </div>
-                <div className="p-6 space-y-4">
-                    <div>
-                        <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700">แนบไฟล์ (ถ้ามี)</label>
-                        <input
-                            id="file-upload"
-                            type="file"
-                            multiple
-                            onChange={(e) => setFiles(e.target.files)}
-                            className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-600 hover:file:bg-primary-100"
-                        />
-                        {files && files.length > 0 && (
-                            <p className="text-xs text-gray-500 mt-1 truncate" title={fileNames}>
-                                เลือกแล้ว {files.length} ไฟล์: {fileNames}
-                            </p>
-                        )}
-                    </div>
-                    <div>
-                        <label htmlFor="notes" className="block text-sm font-medium text-gray-700">บันทึกถึงเซล</label>
-                        <textarea
-                            id="notes"
-                            rows={4}
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                            placeholder="เพิ่มข้อความ..."
-                        />
-                    </div>
-                </div>
-                <div className="p-4 bg-gray-50 flex justify-end space-x-3">
-                    <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
-                        ยกเลิก
-                    </button>
-                    <button onClick={handleSubmit} className="px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md hover:bg-green-700 flex items-center">
-                        <CheckCircleIcon className="w-5 h-5 mr-2" />
-                        เสร็จสิ้นและส่งมอบงาน
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 interface DeleteJobModalProps {
     job: Job;
@@ -119,20 +52,19 @@ const DeleteJobModal: React.FC<DeleteJobModalProps> = ({ job, onClose, onConfirm
 interface JobQueueProps {
   jobs: Job[];
   salesUsers: User[];
+  supportUsers: User[];
   onUpdateJobStatus: (jobId: string, status: JobStatus) => void;
   onDeleteJob: (jobId: string) => void;
   currentUser: User;
 }
 
-const JobQueue: React.FC<JobQueueProps> = ({ jobs, salesUsers, onUpdateJobStatus, onDeleteJob, currentUser }) => {
-    const [completingJob, setCompletingJob] = useState<Job | null>(null);
+const JobQueue: React.FC<JobQueueProps> = ({ jobs, salesUsers, supportUsers, onUpdateJobStatus, onDeleteJob, currentUser }) => {
     const [deletingJob, setDeletingJob] = useState<Job | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedSalesperson, setSelectedSalesperson] = useState('all');
     
     const findSalesUser = (id?: string) => salesUsers.find(s => s.id === id);
-
-    const handleInitiateComplete = (job: Job) => {
-        setCompletingJob(job);
-    };
+    const findSupportUser = (id?: string) => supportUsers.find(s => s.id === id);
     
     const handleInitiateDelete = (job: Job) => {
         setDeletingJob(job);
@@ -143,59 +75,55 @@ const JobQueue: React.FC<JobQueueProps> = ({ jobs, salesUsers, onUpdateJobStatus
         setDeletingJob(null);
     };
 
-    const handleConfirmComplete = (job: Job, files: FileList | null, notes: string) => {
-        const salesperson = findSalesUser(job.salespersonId);
-        if (!salesperson) {
-            alert('ไม่พบข้อมูลเซลล์เจ้าของงาน');
-            return;
-        }
-
-        const subject = `งานเสร็จสิ้น: ${job.title}`;
+    const filteredJobs = useMemo(() => {
+      return jobs.filter(job => {
+        const searchTermLower = searchTerm.toLowerCase();
+        const matchesSearch = searchTerm === '' ||
+          job.title.toLowerCase().includes(searchTermLower) ||
+          job.description.toLowerCase().includes(searchTermLower);
         
-        let fileAttachmentInfo = '';
-        if (files && files.length > 0) {
-            const fileNames = Array.from(files).map(f => f.name).join(', ');
-            fileAttachmentInfo = `มีการแนบไฟล์ ${files.length} ไฟล์: ${fileNames}\n\n**สำคัญ: กรุณาแนบไฟล์นี้ด้วยตนเองเมื่อส่งอีเมล**`;
-        }
+        const matchesSalesperson = selectedSalesperson === 'all' || job.salespersonId === selectedSalesperson;
 
-        const body = `สวัสดีคุณ ${salesperson.firstName},
-
-งานของคุณ '${job.title}' ได้ดำเนินการเสร็จสิ้นแล้ว
-
-รายละเอียดงาน:
-${job.description}
-
-${notes ? `บันทึกจากทีมซัพพอร์ต:\n${notes}\n\n` : ''}${fileAttachmentInfo ? `${fileAttachmentInfo}\n\n` : ''}ขอแสดงความนับถือ,
-${currentUser.firstName} ${currentUser.lastName}
-(${currentUser.email})
-`;
-
-        const mailtoLink = `mailto:${salesperson.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-        window.location.href = mailtoLink;
-
-        onUpdateJobStatus(job.id, JobStatus.Completed);
-        setCompletingJob(null);
-    };
+        return matchesSearch && matchesSalesperson;
+      });
+    }, [jobs, searchTerm, selectedSalesperson]);
 
     const now = new Date();
-    const overdueJobs = jobs.filter(j => j.status !== JobStatus.Completed && new Date(j.dueDate) < now).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-    const inProgressJobs = jobs.filter(j => j.status === JobStatus.InProgress && new Date(j.dueDate) >= now).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-    const queuedJobs = jobs.filter(j => j.status === JobStatus.Queued && new Date(j.dueDate) >= now).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
-    const completedJobs = jobs.filter(j => j.status === JobStatus.Completed).sort((a, b) => (b.completedAt?.getTime() ?? b.createdAt.getTime()) - (a.completedAt?.getTime() ?? a.createdAt.getTime()));
+    const overdueJobs = filteredJobs.filter(j => j.status !== JobStatus.Completed && new Date(j.dueDate) < now).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    const inProgressJobs = filteredJobs.filter(j => j.status === JobStatus.InProgress && new Date(j.dueDate) >= now).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    const queuedJobs = filteredJobs.filter(j => j.status === JobStatus.Queued && new Date(j.dueDate) >= now).sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());
+    const completedJobs = filteredJobs.filter(j => j.status === JobStatus.Completed).sort((a, b) => (b.completedAt?.getTime() ?? b.createdAt.getTime()) - (a.completedAt?.getTime() ?? a.createdAt.getTime()));
     
-    const completingJobSalesperson = completingJob ? findSalesUser(completingJob.salespersonId) : undefined;
-    
+    const clearFilters = () => {
+        setSearchTerm('');
+        setSelectedSalesperson('all');
+    };
+
+    const JobSection = ({ title, count, jobs, icon }: { title: string; count: number; jobs: Job[]; icon: React.ReactNode; }) => {
+        if (filteredJobs.length > 0 && jobs.length === 0) return null;
+        return (
+            <section>
+                <h3 className="text-lg font-medium text-gray-700 mb-3 flex items-center">{icon}<span className="ml-2">{title} ({count})</span></h3>
+                <div className="space-y-3">
+                    {jobs.length > 0 ? jobs.map(job => (
+                        <JobCard 
+                            key={job.id} 
+                            job={job} 
+                            salesperson={findSalesUser(job.salespersonId)} 
+                            supportHandler={findSupportUser(job.supportHandlerId)}
+                            onUpdateJobStatus={onUpdateJobStatus} 
+                            onInitiateComplete={() => onUpdateJobStatus(job.id, JobStatus.Completed)} 
+                            onInitiateDelete={handleInitiateDelete} 
+                            currentUser={currentUser}
+                        />
+                    )) : <p className="text-gray-500 text-sm">ไม่มีงานในหมวดหมู่นี้</p>}
+                </div>
+            </section>
+        );
+    };
+
   return (
     <>
-    {completingJob && completingJobSalesperson && (
-        <CompleteJobModal 
-            job={completingJob} 
-            salesperson={completingJobSalesperson}
-            currentUser={currentUser}
-            onClose={() => setCompletingJob(null)}
-            onConfirm={handleConfirmComplete}
-        />
-    )}
     {deletingJob && (
         <DeleteJobModal
             job={deletingJob}
@@ -204,10 +132,53 @@ ${currentUser.firstName} ${currentUser.lastName}
         />
     )}
     <div className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
-        <QueueListIcon className="w-6 h-6 mr-2 text-primary-500" />
-        คิวงานทั้งหมด
-      </h2>
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-6 gap-4">
+        <h2 className="text-xl font-semibold text-gray-800 flex items-center">
+          <QueueListIcon className="w-6 h-6 mr-2 text-primary-500" />
+          คิวงานทั้งหมด
+        </h2>
+      </div>
+      
+      {/* --- Filter Section --- */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border">
+        <div className="relative">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">ค้นหา</label>
+            <MagnifyingGlassIcon className="pointer-events-none absolute top-8 left-3 h-5 w-5 text-gray-400" />
+            <input
+                type="text"
+                id="search"
+                placeholder="หัวข้อ, รายละเอียด..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="block w-full rounded-md border-gray-300 pl-10 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            />
+        </div>
+        <div>
+            <label htmlFor="salesperson-filter" className="block text-sm font-medium text-gray-700 mb-1">พนักงานขาย</label>
+            <select
+                id="salesperson-filter"
+                value={selectedSalesperson}
+                onChange={e => setSelectedSalesperson(e.target.value)}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+            >
+                <option value="all">พนักงานขายทั้งหมด</option>
+                {salesUsers.map(user => (
+                    <option key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName}
+                    </option>
+                ))}
+            </select>
+        </div>
+        <div className="flex items-end">
+             <button
+                onClick={clearFilters}
+                className="w-full text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm py-2 px-4 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+                ล้างตัวกรอง
+            </button>
+        </div>
+      </div>
+      
       <div className="space-y-6">
         {overdueJobs.length > 0 && (
           <section className="bg-red-50 p-4 rounded-lg">
@@ -217,35 +188,32 @@ ${currentUser.firstName} ${currentUser.lastName}
               </h3>
               <div className="space-y-3">
                   {overdueJobs.map(job => (
-                      <JobCard key={job.id} job={job} salesperson={findSalesUser(job.salespersonId)} onUpdateJobStatus={onUpdateJobStatus} onInitiateComplete={handleInitiateComplete} onInitiateDelete={handleInitiateDelete} currentUser={currentUser}/>
+                      <JobCard 
+                        key={job.id} 
+                        job={job} 
+                        salesperson={findSalesUser(job.salespersonId)} 
+                        supportHandler={findSupportUser(job.supportHandlerId)}
+                        onUpdateJobStatus={onUpdateJobStatus} 
+                        onInitiateComplete={() => onUpdateJobStatus(job.id, JobStatus.Completed)} 
+                        onInitiateDelete={handleInitiateDelete} 
+                        currentUser={currentUser}
+                      />
                   ))}
               </div>
           </section>
         )}
-        <section>
-            <h3 className="text-lg font-medium text-gray-700 mb-3">กำลังดำเนินการ ({inProgressJobs.length})</h3>
-            <div className="space-y-3">
-                {inProgressJobs.length > 0 ? inProgressJobs.map(job => (
-                    <JobCard key={job.id} job={job} salesperson={findSalesUser(job.salespersonId)} onUpdateJobStatus={onUpdateJobStatus} onInitiateComplete={handleInitiateComplete} onInitiateDelete={handleInitiateDelete} currentUser={currentUser}/>
-                )) : <p className="text-gray-500 text-sm">ไม่มีงานที่กำลังดำเนินการ</p>}
+
+        {filteredJobs.length === 0 && (
+            <div className="text-center py-10">
+                <FunnelIcon className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">ไม่พบงานที่ตรงกับเงื่อนไข</h3>
+                <p className="mt-1 text-sm text-gray-500">ลองปรับเปลี่ยนการค้นหาหรือตัวกรองของคุณ</p>
             </div>
-        </section>
-        <section>
-            <h3 className="text-lg font-medium text-gray-700 mb-3">อยู่ในคิว ({queuedJobs.length})</h3>
-            <div className="space-y-3">
-                {queuedJobs.length > 0 ? queuedJobs.map(job => (
-                    <JobCard key={job.id} job={job} salesperson={findSalesUser(job.salespersonId)} onUpdateJobStatus={onUpdateJobStatus} onInitiateComplete={handleInitiateComplete} onInitiateDelete={handleInitiateDelete} currentUser={currentUser}/>
-                )) : <p className="text-gray-500 text-sm">ไม่มีงานอยู่ในคิว</p>}
-            </div>
-        </section>
-        <section>
-            <h3 className="text-lg font-medium text-gray-700 mb-3">เสร็จสิ้น ({completedJobs.length})</h3>
-            <div className="space-y-3">
-                {completedJobs.length > 0 ? completedJobs.map(job => (
-                    <JobCard key={job.id} job={job} salesperson={findSalesUser(job.salespersonId)} onUpdateJobStatus={onUpdateJobStatus} onInitiateComplete={handleInitiateComplete} onInitiateDelete={handleInitiateDelete} currentUser={currentUser}/>
-                )) : <p className="text-gray-500 text-sm">ยังไม่มีงานที่เสร็จสิ้น</p>}
-            </div>
-        </section>
+        )}
+        
+        {inProgressJobs.length > 0 && <JobSection title="กำลังดำเนินการ" count={inProgressJobs.length} jobs={inProgressJobs} icon={<ExclamationTriangleIcon className="w-6 h-6 text-blue-500" />} />}
+        {queuedJobs.length > 0 && <JobSection title="อยู่ในคิว" count={queuedJobs.length} jobs={queuedJobs} icon={<ExclamationTriangleIcon className="w-6 h-6 text-gray-500" />} />}
+        {completedJobs.length > 0 && <JobSection title="เสร็จสิ้น" count={completedJobs.length} jobs={completedJobs} icon={<ExclamationTriangleIcon className="w-6 h-6 text-green-500" />} />}
       </div>
     </div>
     </>
