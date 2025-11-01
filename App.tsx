@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { Job, JobStatus, User, Role } from './types';
 import AuthScreen from './components/AuthScreen';
@@ -303,6 +302,7 @@ const App: React.FC = () => {
   }
   
   const salesUsers = registeredUsers.filter(u => u.role === Role.Sales);
+  const supportUsers = registeredUsers.filter(u => u.role === Role.Support);
 
   return (
     <div className="bg-gray-100 min-h-screen font-sans">
@@ -311,7 +311,14 @@ const App: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2">
-              <JobQueue jobs={jobs} salesUsers={salesUsers} onUpdateJobStatus={handleUpdateJobStatus} onDeleteJob={handleDeleteJob} currentUser={user} />
+              <JobQueue 
+                jobs={jobs} 
+                salesUsers={salesUsers}
+                supportUsers={supportUsers}
+                onUpdateJobStatus={handleUpdateJobStatus} 
+                onDeleteJob={handleDeleteJob} 
+                currentUser={user}
+              />
             </div>
             <div className="space-y-8">
               {(user.role === Role.Sales || user.role === Role.Support) && (
@@ -319,6 +326,7 @@ const App: React.FC = () => {
                   onAddJob={handleAddJob}
                   currentUser={user}
                   salesUsers={salesUsers}
+                  supportUsers={supportUsers}
                 />
               )}
               <SalespersonDashboard salesUsers={salesUsers} jobs={jobs} currentUser={user} />
